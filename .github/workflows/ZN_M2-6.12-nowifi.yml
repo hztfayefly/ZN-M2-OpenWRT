@@ -160,39 +160,16 @@ jobs:
     - name: Download DL Package(下载DL软件包)
       run: |
         cd $OPENWRT_PATH
-        echo "===== [diag] make prereq V=s 详细检查 ====="
-        make prereq V=s 2>&1 | tail -200
+        echo "===== [diag] make prereq V=s 详细输出 ====="
+        make prereq V=s 2>&1 | tail -150
         echo "===== [diag] prereq exit=${PIPESTATUS[0]} ====="
-        echo "===== [diag] 逐项手动复现 prereq 检查 ====="
-        echo "-- working-make: $(make -v | head -1)"
-        echo "-- gcc ver: $(gcc -dumpversion)"
-        echo "-- g++ ver: $(g++ -dumpversion)"
-        echo "-- gcc 编译测试:"; echo 'int main(void){return 0;}' | gcc -x c -o /tmp/t_gcc.o - && echo "     gcc ok" || echo "     gcc *** 失败 ***"
-        echo "-- g++ 编译测试:"; echo 'int main(){return 0;}' | g++ -x c++ -o /tmp/t_gpp.o - -lstdc++ && echo "     g++ ok" || echo "     g++ *** 失败 ***"
-        echo "-- ncurses 链接测试:"; echo 'int main(){initscr();return 0;}' | gcc -x c -o /tmp/t_nc.o - -lncurses && echo "     ncurses ok" || echo "     ncurses *** 失败 ***"
-        echo "-- argp 链接测试:"; echo '#include <argp.h>
-int main(){return 0;}' | gcc -x c -o /tmp/t_argp.o - && echo "     argp ok" || echo "     argp *** 失败 ***"
-        echo "-- git submodule: $(git submodule --help 2>&1 | grep -c -- --recursive)"
-        echo "-- rsync: $(rsync --version </dev/null 2>&1 | head -1)"
-        echo "-- file: $(file --version 2>&1 | head -1)"
-        echo "-- df 根分区:"; df -h / | tail -1
-        echo "===== [diag] 手动复现关键检查 ====="
-        for h in ncurses.h argp.h fts.h obstack.h libintl.h; do
-          if ls /usr/include/$h >/dev/null 2>&1; then echo "    header $h : 存在"; else echo "    header $h : *** 缺失 ***"; fi
-        done
-        for mod in Data::Dumper FindBin File::Copy File::Compare Thread::Queue IPC::Cmd; do
-          if perl -M$mod -e 1 >/dev/null 2>&1; then echo "    perl $mod : ok"; else echo "    perl $mod : *** 缺失 ***"; fi
-        done
-        echo "    python3 distutils: $(python3 -c 'import distutils' 2>&1 || echo 缺失)"
-        echo "    python3 stdlib(ntpath): $(python3 -c 'import ntpath' 2>&1 || echo 缺失)"
-        echo "    umask: $(umask)"
-        echo "    make -v: $(make -v | head -1)"
+        echo "===== [diag] df 根分区 ====="
+        df -h / | tail -1
         echo "===== [diag] 开始 make defconfig ====="
         make defconfig
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
-
     - name: Compile Firmware(开始编译固件)
       id: compile
       run: |
