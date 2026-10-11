@@ -44,7 +44,30 @@ jobs:
         sudo rm -rf /usr/share/dotnet /etc/apt/sources.list.d /usr/local/lib/android $AGENT_TOOLSDIRECTORY
         sudo -E apt-get -y purge azure-cli ghc* zulu* llvm* firefox google* dotnet* powershell openjdk* mongodb* moby* || true
         sudo -E apt-get -y update
-        sudo -E apt-get -y install $(curl -fsSL is.gd/depends_ubuntu_2204)
+        echo ">>> 安装编译依赖清单（原 is.gd 短链接已 404 失效，改为内联）"
+        DEPS="build-essential clang flex bison gawk gettext pkg-config \
+        automake autopoint libtool libtool-bin autoconf pkgconf \
+        zlib1g-dev libncurses-dev libncurses5-dev ncurses-term libreadline-dev \
+        libssl-dev libelf-dev libglib2.0-dev libgmp-dev libmpc-dev libmpfr-dev gnutls-dev \
+        python3 python3-dev python3-distutils python3-setuptools python3-pip \
+        python3-pyelftools python3-ply python3-docutils \
+        unzip zip gzip bzip2 xz-utils zstd tar cpio ccache \
+        cmake ninja-build meson scons swig qemu-utils \
+        patch diffstat rsync wget curl git gpg gperf help2man intltool \
+        bc findutils file lrzsz genisoimage device-tree-compiler \
+        squashfs-tools cryptsetup-bin \
+        texinfo xxd dosfstools"
+        MISS=""
+        for pkg in $DEPS; do
+          if ! dpkg -s "$pkg" >/dev/null 2>&1; then
+            sudo -E apt-get -y install --no-install-recommends "$pkg" >/dev/null 2>&1 || MISS="$MISS $pkg"
+          fi
+        done
+        echo ">>> 依赖安装完成。跳过的包:${MISS:- 无}"
+        echo ">>> 校验关键工具:"
+        for t in gcc g++ make python3 git unzip tar xz gzip bzip2 patch find stat; do
+          printf "    %-10s %s\n" "$t" "$(command -v $t 2>/dev/null || echo 缺失)"
+        done
         sudo -E systemctl daemon-reload
         sudo -E apt-get -y autoremove --purge
         sudo -E apt-get -y clean
