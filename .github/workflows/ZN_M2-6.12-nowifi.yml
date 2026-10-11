@@ -82,6 +82,10 @@ jobs:
         sudo timedatectl set-timezone "$TZ"
 
     - name: Combine Disks(合并磁盘)
+      # 已禁用：该步骤用 loop 设备在当前 runner 的根分区上创建 109G 卷文件，
+      # 把 / 从 41% 撑到 100% 满，导致 make 写入失败（write error: stdout）、prereq 全部失败。
+      # 现代 GitHub runner 的 / 已有 87G 可用，足够 OpenWrt 编译，无需合并磁盘。
+      if: false
       uses: easimon/maximize-build-space@master
       with:
         swap-size-mb: 1024
