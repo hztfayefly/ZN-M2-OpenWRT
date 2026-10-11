@@ -6,8 +6,8 @@ on:
   #  - cron: 0 12 * * 5
 
 env:
-  REPO_URL: https://github.com/LiBwrt/openwrt-6.x.git
-  REPO_BRANCH: main-nss
+  REPO_URL: https://github.com/LiBwrt/LibWrt.git
+  REPO_BRANCH: 25.12-nss
   CONFIG_FILE: config/ZN_M2-6.12-nowifi.config
   DIY_SCRIPT: diy/ZN_M2-diy.sh
   CLASH_KERNEL: amd64
@@ -130,7 +130,7 @@ jobs:
     - name: 输出构建日志
       if: failure()
       run: |
-        cat /home/runner/work/ZN_M2-OpenWRT-CI/ZN_M2-OpenWRT-CI/openwrt/build.log
+        if [ -f "$OPENWRT_PATH/build.log" ]; then cat "$OPENWRT_PATH/build.log"; else echo "build.log 未生成（源码可能未成功克隆）"; ls -la "$OPENWRT_PATH" 2>/dev/null || true; fi
     - name: Check Space Usage(检查空间使用情况)
       if: (!cancelled())
       run: df -hT
