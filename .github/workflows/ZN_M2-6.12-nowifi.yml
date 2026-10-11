@@ -73,15 +73,28 @@ jobs:
 
     - name: Generate Variables(生成变量)
       run: |
-        cp $CONFIG_FILE $OPENWRT_PATH/.config
-        cd $OPENWRT_PATH
-        make defconfig > /dev/null 2>&1
+        echo ">>> [diag] workspace=$(pwd)"
+        echo ">>> [diag] CONFIG_FILE=$CONFIG_FILE"
+        echo ">>> [diag] OPENWRT_PATH=$OPENWRT_PATH"
+        ls -la "$CONFIG_FILE" 2>&1 || echo "!! CONFIG_FILE 不存在"
+        ls -la "$OPENWRT_PATH" 2>&1 | head -5 || echo "!! OPENWRT_PATH 不存在"
+        echo ">>> [diag] copy config"
+        cp -v "$CONFIG_FILE" "$OPENWRT_PATH/.config"
+        echo ">>> [diag] cp exit=$?"
+        cd "$OPENWRT_PATH"
+        echo ">>> [diag] make defconfig 输出开始"
+        make defconfig 2>&1 | tail -80
+        echo ">>> [diag] defconfig exit=${PIPESTATUS[0]}"
+        if [ -f .config ]; then echo ">>> [diag] .config 行数=$(wc -l < .config)"; else echo "!! .config 不存在"; fi
         SOURCE_REPO="$(echo $REPO_URL | awk -F '/' '{print $(NF)}')"
         echo "SOURCE_REPO=$SOURCE_REPO" >> $GITHUB_ENV
-        DEVICE_TARGET=$(cat .config | grep CONFIG_TARGET_BOARD | awk -F '"' '{print $2}')
+        DEVICE_TARGET=$(grep -m1 '^CONFIG_TARGET_BOARD=' .config | awk -F '"' '{print $2}' || true)
+        if [ -z "$DEVICE_TARGET" ]; then DEVICE_TARGET=qualcommax; fi
         echo "DEVICE_TARGET=$DEVICE_TARGET" >> $GITHUB_ENV
-        DEVICE_SUBTARGET=$(cat .config | grep CONFIG_TARGET_SUBTARGET | awk -F '"' '{print $2}')
+        DEVICE_SUBTARGET=$(grep -m1 '^CONFIG_TARGET_SUBTARGET=' .config | awk -F '"' '{print $2}' || true)
+        if [ -z "$DEVICE_SUBTARGET" ]; then DEVICE_SUBTARGET=ipq60xx; fi
         echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
+        echo ">>> [diag] DEVICE_TARGET=$DEVICE_TARGET DEVICE_SUBTARGET=$DEVICE_SUBTARGET"
 
     - name: Cache Toolchain(缓存工具链)
       if: env.CACHE_TOOLCHAIN == 'true'
