@@ -26,6 +26,10 @@ jobs:
             fi
           done
           echo ">>> 依赖安装完成。跳过的包:${MISS:- 无}"
+          if ! command -v python >/dev/null 2>&1; then
+            sudo ln -sf "$(command -v python3)" /usr/local/bin/python || true
+          fi
+          echo "python=$(command -v python)"
           exit 0
 
       - name: Clone
@@ -33,42 +37,43 @@ jobs:
           set +e
           git clone --depth 1 -b 25.12-nss https://github.com/LiBwrt/LibWrt.git openwrt
           cp config/ZN_M2-6.12-nowifi.config openwrt/.config
-          echo "clone exit=$?"
           exit 0
 
-      - name: Pre-prereq state
+      - name: Faithful repro of defconfig prereq
         run: |
           set +e
           cd openwrt
-          echo "--- umask ---"; umask
-          echo "--- which gcc ---"; command -v gcc
-          echo "--- gcc version ---"; gcc --version 2>&1 | head -2
-          echo "--- staging_dir ---"; ls -ld staging_dir 2>&1
-          echo "--- staging_dir/host/bin (before) ---"; ls -la staging_dir/host/bin 2>&1 | head -30
-          echo "--- tmp ---"; ls -ld tmp 2>&1
-          echo "--- scripts/mkhash.c ---"; ls -la scripts/mkhash.c 2>&1
-          echo "--- tools/include ---"; ls -la tools/include 2>&1 | head -20
+          export TOPDIR=$(pwd)
+          echo "===== 忠实复现：make -j1 -r -s -f include/prereq-build.mk prereq（stderr 可见）====="
+          make -j1 -r -s -f "$TOPDIR/include/prereq-build.mk" prereq V=s > /tmp/preq1.log 2>&1
+          echo "EXIT1=$?"
+          tail -60 /tmp/preq1.log
+          echo "===== tmp/.prereq-error ====="
+          cat tmp/.prereq-error 2>&1
+          echo "===== staging_dir/host/bin ====="
+          ls -la staging_dir/host/bin 2>&1 | head -40
           exit 0
 
-      - name: Run prereq-build.mk directly with stderr VISIBLE
+      - name: Test workaround pre-create host gcc symlink
         run: |
           set +e
           cd openwrt
-          echo "===== 直接运行 prereq-build.mk，stderr 不丢弃 ====="
-          make -j1 -r -s -f "$(pwd)/include/prereq-build.mk" prereq V=s 2>&1 | tail -200
-          echo "===== PREREQ_EXIT=${PIPESTATUS[0]} ====="
-          echo "--- tmp/.prereq-error ---"; cat tmp/.prereq-error 2>&1
-          echo "--- staging_dir/host/bin (after) ---"; ls -la staging_dir/host/bin 2>&1 | head -40
-          exit 0
-
-      - name: Manual mkhash compile test
-        run: |
-          set +e
-          cd openwrt
+          export TOPDIR=$(pwd)
+          rm -rf tmp/.prereq-error
           mkdir -p staging_dir/host/bin
-          echo "--- 手动编译 mkhash ---"
-          gcc -O2 -I"$(pwd)/tools/include" -o /tmp/mkhash_test scripts/mkhash.c 2>&1 | tail -25
-          echo "MANUAL_EXIT=$?"
-          ls -la /tmp/mkhash_test 2>&1
-          echo "--- 功能测试 ---"; /tmp/mkhash_test 2>&1 | head -3
+          ln -sf "$(command -v gcc)" staging_dir/host/bin/gcc
+          ln -sf "$(command -v g++)" staging_dir/host/bin/g++
+          echo "===== 预建 gcc 符号链接后再跑 prereq ====="
+          make -j1 -r -s -f "$TOPDIR/include/prereq-build.mk" prereq V=s > /tmp/preq2.log 2>&1
+          echo "EXIT2=$?"
+          tail -60 /tmp/preq2.log
+          echo "===== tmp/.prereq-error ====="
+          cat tmp/.prereq-error 2>&1
+          echo "===== staging_dir/host/bin ====="
+          ls -la staging_dir/host/bin 2>&1 | head -40
+          echo "===== 再跑 make defconfig ====="
+          make defconfig V=s > /tmp/defconfig.log 2>&1
+          echo "DEFCONFIG_EXIT=$?"
+          tail -30 /tmp/defconfig.log
+          ls -la .config
           exit 0
