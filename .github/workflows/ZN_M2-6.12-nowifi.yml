@@ -156,6 +156,21 @@ jobs:
     - name: Download DL Package(下载DL软件包)
       run: |
         cd $OPENWRT_PATH
+        echo "===== [diag] make prereq 详细检查 ====="
+        make prereq 2>&1 | tail -120
+        echo "===== [diag] prereq exit=${PIPESTATUS[0]} ====="
+        echo "===== [diag] 手动复现关键检查 ====="
+        for h in ncurses.h argp.h fts.h obstack.h libintl.h; do
+          if ls /usr/include/$h >/dev/null 2>&1; then echo "    header $h : 存在"; else echo "    header $h : *** 缺失 ***"; fi
+        done
+        for mod in Data::Dumper FindBin File::Copy File::Compare Thread::Queue IPC::Cmd; do
+          if perl -M$mod -e 1 >/dev/null 2>&1; then echo "    perl $mod : ok"; else echo "    perl $mod : *** 缺失 ***"; fi
+        done
+        echo "    python3 distutils: $(python3 -c 'import distutils' 2>&1 || echo 缺失)"
+        echo "    python3 stdlib(ntpath): $(python3 -c 'import ntpath' 2>&1 || echo 缺失)"
+        echo "    umask: $(umask)"
+        echo "    make -v: $(make -v | head -1)"
+        echo "===== [diag] 开始 make defconfig ====="
         make defconfig
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
