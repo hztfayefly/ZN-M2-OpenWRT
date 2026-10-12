@@ -160,13 +160,12 @@ jobs:
     - name: Download DL Package(下载DL软件包)
       run: |
         cd $OPENWRT_PATH
-        echo "===== [diag] make prereq V=s 详细输出 ====="
-        make prereq V=s 2>&1 | tail -150
-        echo "===== [diag] prereq exit=${PIPESTATUS[0]} ====="
-        echo "===== [diag] df 根分区 ====="
         df -h / | tail -1
-        echo "===== [diag] 开始 make defconfig ====="
         make defconfig
+        echo "===== 目标插件是否保留在最终 .config 中 ====="
+        for p in luci-app-openclash luci-app-zerotier luci-app-ttyd ttyd dnsmasq-full ruby ruby-yaml; do
+          printf "  %-22s %s\n" "$p" "$(grep -m1 \"^CONFIG_PACKAGE_${p}=\" .config || echo '未启用')"
+        done
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
